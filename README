@@ -1,0 +1,11 @@
+/******************************************************************************
+*****                         Fast Copy Utility                          *****
+******************************************************************************/
+
+/* Developed by Pablo Estrada, in 2012
+*/
+
+/*
+This utility implements a fast copy functionality, to copy files from source
+to destination.
+*/

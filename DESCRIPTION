@@ -1,0 +1,36 @@
+Project Description:
+I need to develop utility that will allow copying the file from source to destination.
+The following are the requirements:
+I need to develop utility that will allow copying the file from source to destination.
+The following are the requirements:
+1.  The utility will perform Copy and Move operations
+2.  The utility will allow full command line control
+3.  The utility will support the command line keys: Overwrite, Unattended, Help, Bandwidth, TxtLog, SNMPLog, UILog
+4.  Overwrite key will cause the utility to overwrite the destination file
+5.  Unattended key will cause the utility to not display any UI
+6.  Help key will display help for the utility
+7.  Bandwidth key will allow setting the maximum network bandwidth used by utility (for example: /bandwidth=100 – in kbp/s) 
+8.  TxtLog key will allow setting the log location (for example: c:\tmp\log.txt)
+9.  SNMPLog key will cause reporting by SNMP traps
+10. UILog key will display the log values in sysout window
+11. The following are the values that needed to be logged:
+1)  percent of proceed
+2)  volume
+3)  time estimation for finish
+4)  time of start
+5)  average speed of file transfer
+12. The utility will allow unattended mode
+13. The utility will allow controlling the network bandwidth which will be used to copy the file
+14. The utility will allow using all the available network bandwidth for copy operation
+15. The utility will report any problem by SNMP trap 
+16. The utility will report any problem by using log entry
+17. The utility will allow resuming from the same point it stopped when the problem occurs
+18. The utility will allow stopping or pausing
+19. The code will be owned by the customer
+20. Design and Code review will be performed during the project and the milestone will be paid according to it 
+
+Additional Project Description:
+02/01/2012 at 1:58 EST:
+21. The test cases will be presented by the developer and test results will be presented upon the last milestone.
+22. Currently, the only Windows evironment will be supported. 
+
