@@ -19,9 +19,13 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <unistd.h>
 
+/* This is the tracing macro. It can be extended to cover wider needs, but it is
+ * enough for now. If we have a file open (traceFile != 0), then we go ahead
+ * and write logs to the traceFile
+ */
 #define write_trace(...) if(traceFile) fprintf(traceFile, __VA_ARGS__);
-
 
 FILE* traceFile = 0;
 char *host = "localhost";
@@ -78,12 +82,27 @@ int parseHost(char *hostString, char **hostPointer, char **username, char **file
     }
     if(!hostString[i]) *hostPointer = currentPointer;
 
+    if(!*username)
+    { /* If a username was not passed in, we get the one from the parent
+       * terminal */
+        *username = getlogin();
+    }
+
     write_trace( "Host set to \"%s\"\n", *hostPointer);
     write_trace( "Destination filename set to \"%s\"\n", *filename);
     write_trace( "User set to \"%s\"\n", *username);
     return 1;
 }
 
+/*
+int set_verbosity(char *verbString)*/
+/* This function parses the string that comes after the -v option, looking
+ * for the logging tags shown on the help option. It parses for the fcp
+ * specific logging, and the libssh logging that prints out to stdout
+ * Arguments:
+ * *    verbString - Pointer to the string that comes after the -v in the
+ * *                    input arguments.
+ */
 int set_verbosity(char *verbString)
 {
     do {
@@ -161,6 +180,9 @@ int shutDown(int outCode)
     if(traceFile && traceFile != stdout)
         fclose(traceFile);
 
+    if(my_ssh_session)
+        ssh_free(my_ssh_session);
+
     exit(outCode);
 }
 
@@ -196,11 +218,21 @@ int verify_host(ssh_session session)
 
     }
 }*/
-
+/*
+int connect_and_auth(ssh_session my_ssh_session)*/
+/* This function attempts to connect through an already setup ssh_session
+ * If it is able to connect, it validates the host, and then it tries to
+ * authenticate through password. If any of these fails, the application
+ * exits right away.
+ * Arguments:
+ * *    my_ssh_session - The already setup ssh_session through which we
+ * *                        will try to connect.
+ */
 int connect_and_auth(ssh_session my_ssh_session)
 {
     char *pass;
     int rc;
+    char buffer[256];
 
     rc = ssh_connect(my_ssh_session);
     if( rc != SSH_OK )
@@ -212,22 +244,32 @@ int connect_and_auth(ssh_session my_ssh_session)
 
     verify_host(my_ssh_session);
 
-    pass = getpass("Write password-> ");
+    sprintf(buffer, "%s@%s's password: ", username, host);
+    pass = getpass(buffer);
 
     rc = ssh_userauth_password(my_ssh_session, NULL, pass);
     if ( rc != SSH_AUTH_SUCCESS )
     {
         fprintf(stderr, "Error authenticating with password\n");
-        fprintf(traceFile , "Error authenticating with password\n");
+        write_trace("Error authenticating with password\n");
         ssh_disconnect(my_ssh_session);
-        ssh_free(my_ssh_session);
         shutDown(-1);
     }
-    fprintf(traceFile , "Succesfully authenticated with password!!!\n");
+    write_trace( "Succesfully authenticated with password!!!\n");
+
+    free(pass);
 
     return 1;
 }
 
+/*
+int setup_session(ssh_session *my_session)*/
+/* This function creates a new ssh session, and sets up ssh session 
+ * parameters, such as the host, port, verbosity and username (if there is one).
+ * Arguments:
+ * *    my_session - pointer to a ssh_session pointer. It is changed to
+ * *                    point to the newly created ssh_session
+ */
 int setup_session(ssh_session *my_session)
 {
     *my_session = ssh_new();
@@ -237,12 +279,16 @@ int setup_session(ssh_session *my_session)
     ssh_options_set(*my_session, SSH_OPTIONS_HOST, host);
     ssh_options_set(*my_session, SSH_OPTIONS_PORT, &port);
     ssh_options_set(*my_session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
-    if( username )
+    if( username ) /* We should always have a username, but let's just keep this */
         ssh_options_set(*my_session, SSH_OPTIONS_USER, username);
 
     return 1;
 }
 
+/*
+void display_help_exit()*/
+/* This function does what it seems it does. Displays the help and then exits
+ */
 void display_help_exit()
 { /* TODO Write the help information */
     printf("fcp - Fast CoPy utility for Linux\n"
@@ -363,7 +409,19 @@ int get_file_mode(FILE *fd, int *mode)
 
     return 1;
 }
-
+/*
+int send_file(char *local_filename, char *remote_filename)*/
+/* This function is in charge of sending the file we intend to pass
+ * through the network. It takes the local and remote filenames,
+ * creates a ssh_channel and exchanges information through it.
+ * To create a file, we use the 'cat' unix command, and the
+ * 'chmod' command to set file permissions
+ * Arguments:
+ * *    local_filename - String pointer to the file name of the file
+ * *                        in the local machine
+ * *    remote_filename - String pointer to the file name of the file
+ * *                        in the remote machine
+ */
 int send_file(char *local_filename, char *remote_filename)
 {
     ssh_channel my_channel;
@@ -534,7 +592,6 @@ int main(int argc, char *argv[])
 
 
     ssh_disconnect(my_ssh_session);
-    ssh_free(my_ssh_session);
 
     shutDown(1);
 
