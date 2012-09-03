@@ -36,6 +36,8 @@ float max_bandwidth = 0;
 char *tracefile_name = "tracefile.log";
 ssh_session my_ssh_session = 0;
 
+int unattended_mode = 0;
+
 #define NO_LOGGING 1
 #define STDOUT_LOGGING 2
 #define DO_LOGGING 4
@@ -56,7 +58,10 @@ int logging = 0;
  * *    filename    - Pointer to a string pointer that will be assigned
  * *                    to the parsed filename
  * */
-int parseHost(char *hostString, char **hostPointer, char **username, char **filename)
+/* This is an awesome comment added in Vim
+ * */
+int parseHost(char *hostString, char **hostPointer, char **username,
+                char **filename)
 {
     int i = 0;
     char *currentPointer = hostString;
@@ -89,7 +94,8 @@ int parseHost(char *hostString, char **hostPointer, char **username, char **file
     }
 
     write_trace( "Host set to \"%s\"\n", *hostPointer);
-    write_trace( "Destination filename set to \"%s\"\n", *filename);
+    if( *filename )
+        write_trace( "Destination filename set to \"%s\"\n", *filename);
     write_trace( "User set to \"%s\"\n", *username);
     return 1;
 }
@@ -362,6 +368,7 @@ int parse_options(char *argv[], int argc)
             case 'o':
                 break;
             case 'u':
+                unattended_mode = 1;
                 break;
             case 'h':
                 display_help_exit();
@@ -552,10 +559,36 @@ int send_file(char *local_filename, char *remote_filename)
     return 1;
 }
 
+/*
+int default_destfile(char *from, char **dest_file)*/
+/* This function sets the dest_file pointer to the file name for which 
+ * from holds the full path, so if:
+ * from = mydir/filename, this function sets dest_file = filename
+ * Arguments:
+ * *    from        - String pointer to the origin file
+ * *    dest_file   - Pointer to the string pointer for the destination
+ *                      file
+ */
+int default_destfile(char *from, char **dest_file)
+{
+    int i = 0;
+
+    *dest_file = from;
+    for(i=0 ; from[i] ; i++)
+    {
+        if( from[i] == '/' )
+            *dest_file = &from[i+1];
+    }
+    write_trace("Destination file set to \"%s\"", *dest_file);
+
+    return 1;
+}
+
 int main(int argc, char *argv[])
 {
     char *dest_file = 0;
     char *from = 0;
+    int pid;
 
     if(!strcmp(argv[1], "-h"))
         display_help_exit();
@@ -569,11 +602,18 @@ int main(int argc, char *argv[])
     {
         from = argv[1];
         write_trace( "From set to \"%s\"\n", from);
-        dest_file = from;
     }
     if( argc >= 3 )
     {
         parseHost(argv[2], &host, &username, &dest_file);
+    }
+
+    /* If the user did not provide the destination file, then
+     * we set it to the default
+     */
+    if( dest_file == 0 )
+    {
+        default_destfile(from, &dest_file);
     }
    
     /* If we made it here, then we start the session, and setup the parameters
@@ -585,6 +625,15 @@ int main(int argc, char *argv[])
      * In the following call we request the password from the console.
      */
     connect_and_auth(my_ssh_session);
+
+    /* If we want to run in unattended mode, we fork out and leave */
+    if(unattended_mode)
+    {
+        if((pid = fork()) < 0)
+            printf("Could not run unattended, running normally\n");
+        else if( pid != 0 )
+            shutDown(1);
+    }
 
     /* The following code is code for the whole communication process
      */
